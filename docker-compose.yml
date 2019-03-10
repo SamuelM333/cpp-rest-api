@@ -1,7 +1,6 @@
 version: '3.1'
 
 services:
-
   mongo:
     image: mongo:3.6
     ports:
@@ -17,5 +16,12 @@ services:
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
       ME_CONFIG_MONGODB_ADMINPASSWORD: example
+    depends_on:
+      - mongo
+  
+  cpp:
+    build: ./
+    ports:
+      - 9080:9080
     depends_on:
       - mongo
