@@ -14,36 +14,16 @@
 using namespace std;
 using namespace Pistache;
 using namespace rapidjson;
-
+using namespace bsoncxx::builder::stream;
 using bsoncxx::builder::basic::kvp;
 using bsoncxx::builder::basic::make_array;
 using bsoncxx::builder::basic::make_document;
 using bsoncxx::type;
 
-// Print document parts to standard output.
-void print_document(const bsoncxx::document::view& doc) {
-    // Extract _id element as a string.
-    bsoncxx::document::element id_ele = doc["_id"];
-    if (id_ele.type() == type::k_oid) {
-        std::string oid = id_ele.get_oid().value.to_string();
-        std::cout << "OID: " << oid << std::endl;
-    } else {
-        std::cout << "Error: _id was not an object ID." << std::endl;
-    }
 
-}
-
-namespace Generic {
-
-    void handleReady(const Rest::Request &, Http::ResponseWriter response) {
-        response.send(Http::Code::Ok, "1");
-    }
-
-}
-
-class StatsEndpoint {
+class MetalAPI {
 public:
-    StatsEndpoint(Address addr) : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) {}
+    MetalAPI(Address addr) : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) {}
 
     void init(size_t thr = 2) {
         auto opts = Http::Endpoint::options()
@@ -67,79 +47,70 @@ public:
     }
 
 private:
+    std::shared_ptr<Http::Endpoint> httpEndpoint;
+    Rest::Router router;
+    mongocxx::client mongo_conn;
+
     void setupRoutes() {
         using namespace Rest;
 
-        Routes::Get(router, "/ready", Routes::bind(&Generic::handleReady));
-        Routes::Get(router, "/db", Routes::bind(&StatsEndpoint::doDB, this));
+        Routes::Get(router, "/ready", Routes::bind(&MetalAPI::handleReady, this));
+        Routes::Get(router, "/db", Routes::bind(&MetalAPI::doDB, this));
 
     }
 
+    void handleReady(const Rest::Request &, Http::ResponseWriter response) {
+        response.send(Http::Code::Ok, "1");
+    }
+
     void doDB(const Rest::Request &request, Http::ResponseWriter response) {
-
-        bsoncxx::builder::stream::document document{};
-
+        Document json_response;
+        json_response.SetObject();
+        Value results(kArrayType);
+        Document::AllocatorType& allocator = json_response.GetAllocator();
         auto collection = mongo_conn["metal_api"]["artists"];
-        auto cursor = collection.find({});
+        auto order = document{} << "name" << 1 << finalize;
+        auto opts = mongocxx::options::find{};
+        opts.sort(order.view());
+
+        auto cursor = collection.find({}, opts);
 
         for (auto &&doc : cursor) {
-
+            string band_name;
+            Document band;
             bsoncxx::document::element name = doc["name"];
-//            cout << to_string(name.type()) << endl;
-            cout << name.get_utf8().value << endl;
 
-//            bsoncxx::document::element id_ele = doc["_id"];
-//            if (id_ele.type() == type::k_oid) {
-//                std::string oid = id_ele.get_oid().value.to_string();
-//                std::cout << "OID: " << oid << std::endl;
-//            } else {
-//                std::cout << "Error: _id was not an object ID." << std::endl;
-//            }
+            band_name = name.get_utf8().value.to_string();
+            band.SetObject();
+            band.AddMember("name", band_name, allocator);
+            results.PushBack(band, allocator);
         }
 
-        const char *json = "{\"results\": []}";
-        Document json_response;
-        json_response.Parse(json);
-
-        Value &results = json_response["results"];
+        json_response.AddMember("results", results, allocator);
 
         StringBuffer buffer;
         Writer<StringBuffer> writer(buffer);
         json_response.Accept(writer);
 
-        std::cout << buffer.GetString() << std::endl;
+        cout << buffer.GetString() << endl;
 
         response.headers().add<Http::Header::ContentType>(MIME(Application, Json));
         response.send(Http::Code::Ok, buffer.GetString());
     }
 
-    std::shared_ptr<Http::Endpoint> httpEndpoint;
-    Rest::Router router;
-    mongocxx::client mongo_conn;
-
 };
 
 int main(int argc, char *argv[]) {
     Port port(9080);
-
-    int thr = 2;
-
-    if (argc >= 2) {
-        port = std::stol(argv[1]);
-
-        if (argc == 3) thr = std::stol(argv[2]);
-    }
-
+    unsigned int const threads = 2;
     Address addr(Ipv4::any(), port);
+    MetalAPI stats(addr);
 
     cout << "Cores = " << hardware_concurrency() << endl;
-    cout << "Using " << thr << " threads" << endl;
+    cout << "Using " << threads << " threads" << endl;
     cout << "Starting server in localhost:" << port << endl;
 
-    StatsEndpoint stats(addr);
-
-    stats.init(thr);
+    stats.init(threads);
     stats.start();
-
     stats.shutdown();
 }

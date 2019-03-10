@@ -99,3 +99,5 @@ _deps
 *-prefix/
 
 # End of https://www.gitignore.io/api/clion,cmake
+
+third-party
