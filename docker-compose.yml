@@ -8,6 +8,8 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
+    volumes:
+      - db-data:/data/db
 
   mongo-express:
     image: mongo-express:0.49
@@ -19,9 +21,15 @@ services:
     depends_on:
       - mongo
   
-  cpp:
+  metal-api:
     build: ./
+    command: sh start.sh
+    volumes:
+      - "./:/usr/src/metal-api"
     ports:
       - 9080:9080
     depends_on:
       - mongo
+
+volumes:
+  db-data:

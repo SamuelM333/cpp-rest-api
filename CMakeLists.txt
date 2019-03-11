@@ -3,16 +3,14 @@ project(metal_api)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp)
 
 set(PROJECT_INCLUDE_DIR "src/include")
 set(PISTACHE_INCLUDE_DIR "/usr/local/include/pistache")
-set(RAPIDJSON_ROOT_DIR "${PROJECT_SOURCE_DIR}/third-party/rapidjson")
 set(HEADER_SEARCH_PATHS ${PROJECT_INCLUDE_DIR} ${PISTACHE_INCLUDE_DIR})
 set(EXTRA_LIBRARY "-pthread -lssl -lpistache -lmongocxx -lbsoncxx")
-set(LIBRARIES_SEARCH_PATHS ${PISTACHE_LIBRARY} ${EXTRA_LIBRARY})
+set(LIBRARIES_SEARCH_PATHS ${EXTRA_LIBRARY})
 set(EXTRA_DEFINITIONS "-DRAPIDJSON_HAS_STDSTRING=1")
-
 add_definitions(${EXTRA_DEFINITIONS})
 
 find_package(RapidJSON)

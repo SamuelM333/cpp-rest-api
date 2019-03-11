@@ -39,6 +39,7 @@
 
 # CMake
 cmake-build-*/
+build
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
@@ -99,5 +100,3 @@ _deps
 *-prefix/
 
 # End of https://www.gitignore.io/api/clion,cmake
-
-third-party

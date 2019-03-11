@@ -20,7 +20,7 @@ using bsoncxx::builder::basic::make_array;
 using bsoncxx::builder::basic::make_document;
 using bsoncxx::type;
 
-
+// TODO Split class in a separated file
 class MetalAPI {
 public:
     MetalAPI(Address addr) : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) {}
@@ -32,6 +32,7 @@ public:
         httpEndpoint->init(opts);
         setupRoutes();
 
+        // TODO Get user and pass from env
         const char *uri_string = "mongodb://root:example@localhost:27017";
         mongocxx::instance inst{};
         mongo_conn = {mongocxx::uri{uri_string}};
@@ -101,7 +102,7 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-    Port port(9080);
+    Port port(9090);
     unsigned int const threads = 2;
     Address addr(Ipv4::any(), port);
     MetalAPI stats(addr);
