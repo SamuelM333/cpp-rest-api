@@ -3,4 +3,9 @@
 # TODO wait-for-it mongo
 # TODO Import MongoDB sample data
 
-./build/metal_api
+mkdir build
+cd /usr/src/metal-api/build
+cmake -G 'Unix Makefiles' ..
+make
+
+./metal_api

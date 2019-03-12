@@ -13,10 +13,4 @@ RUN sh /opt/install-dependencies.sh
 COPY . /usr/src/metal-api
 WORKDIR /usr/src/metal-api
 
-RUN mkdir build
-WORKDIR /usr/src/metal-api/build
-RUN cmake -G 'Unix Makefiles' ..
-RUN make
-
 COPY ./start.sh /usr/src/metal-api
-WORKDIR /usr/src/metal-api

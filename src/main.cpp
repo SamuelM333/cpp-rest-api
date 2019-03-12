@@ -33,7 +33,8 @@ public:
         setupRoutes();
 
         // TODO Get user and pass from env
-        const char *uri_string = "mongodb://root:example@localhost:27017";
+        cout << "Connecting to mongo server" << endl;
+        const char *uri_string = "mongodb://root:example@mongo:27017";
         mongocxx::instance inst{};
         mongo_conn = {mongocxx::uri{uri_string}};
     }
@@ -68,6 +69,7 @@ private:
         Document json_response;
         json_response.SetObject();
         Value results(kArrayType);
+        cout << "Querying metal_api.artists" << endl;
         Document::AllocatorType& allocator = json_response.GetAllocator();
         auto collection = mongo_conn["metal_api"]["artists"];
         auto order = document{} << "name" << 1 << finalize;
@@ -102,7 +104,7 @@ private:
 };
 
 int main(int argc, char *argv[]) {
-    Port port(9090);
+    Port port(9080);
     unsigned int const threads = 2;
     Address addr(Ipv4::any(), port);
     MetalAPI stats(addr);

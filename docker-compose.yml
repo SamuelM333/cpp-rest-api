@@ -21,9 +21,9 @@ services:
     depends_on:
       - mongo
   
-  metal-api:
+  cpp:
     build: ./
-    command: sh start.sh
+    command: sh /usr/src/metal-api/start.sh
     volumes:
       - "./:/usr/src/metal-api"
     ports:
