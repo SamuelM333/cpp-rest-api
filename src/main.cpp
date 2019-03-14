@@ -57,8 +57,8 @@ private:
         using namespace Rest;
 
         Routes::Get(router, "/ready", Routes::bind(&MetalAPI::handleReady, this));
-        Routes::Get(router, "/db", Routes::bind(&MetalAPI::doDB, this));
-
+        Routes::Get(router, "/artist", Routes::bind(&MetalAPI::doDB, this));
+        Routes::Post(router, "/artist", Routes::bind(&MetalAPI::create_artist, this));
     }
 
     void handleReady(const Rest::Request &, Http::ResponseWriter response) {
@@ -70,7 +70,7 @@ private:
         json_response.SetObject();
         Value results(kArrayType);
         cout << "Querying metal_api.artists" << endl;
-        Document::AllocatorType& allocator = json_response.GetAllocator();
+        Document::AllocatorType &allocator = json_response.GetAllocator();
         auto collection = mongo_conn["metal_api"]["artists"];
         auto order = document{} << "name" << 1 << finalize;
         auto opts = mongocxx::options::find{};
@@ -97,6 +97,30 @@ private:
 
         cout << buffer.GetString() << endl;
 
+        response.headers().add<Http::Header::ContentType>(MIME(Application, Json));
+        response.send(Http::Code::Ok, buffer.GetString());
+    }
+
+    void create_artist(const Rest::Request &request, Http::ResponseWriter response) {
+        Document payload;
+        payload.Parse(request.body());
+        Value &name = payload["name"];
+        cout << name.GetString() << endl;
+        mongocxx::collection artists = mongo_conn["metal_api"]["artists"];
+        auto builder = bsoncxx::builder::stream::document{};
+        bsoncxx::document::value doc_value = builder
+                << "name" << name.GetString()
+                << bsoncxx::builder::stream::finalize;
+        bsoncxx::document::view view = doc_value.view();
+        bsoncxx::stdx::optional<mongocxx::result::insert_one> result = artists.insert_one(view);
+        auto result_id = result->inserted_id();
+//        payload.SetString("_id", result_id);
+
+        StringBuffer buffer;
+        Writer<StringBuffer> writer(buffer);
+        payload.Accept(writer);
+
+        cout << buffer.GetString() << endl;
         response.headers().add<Http::Header::ContentType>(MIME(Application, Json));
         response.send(Http::Code::Ok, buffer.GetString());
     }
