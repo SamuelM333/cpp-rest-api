@@ -21,6 +21,7 @@ using bsoncxx::builder::basic::make_document;
 using bsoncxx::type;
 
 // TODO Split class in a separated file
+// TODO Make singleton
 class MetalAPI {
 public:
     MetalAPI(Address addr) : httpEndpoint(std::make_shared<Http::Endpoint>(addr)) {}
@@ -57,7 +58,7 @@ private:
         using namespace Rest;
 
         Routes::Get(router, "/ready", Routes::bind(&MetalAPI::handleReady, this));
-        Routes::Get(router, "/artist", Routes::bind(&MetalAPI::doDB, this));
+        Routes::Get(router, "/artist", Routes::bind(&MetalAPI::retrieve_artists, this));
         Routes::Post(router, "/artist", Routes::bind(&MetalAPI::create_artist, this));
     }
 
@@ -65,7 +66,7 @@ private:
         response.send(Http::Code::Ok, "1");
     }
 
-    void doDB(const Rest::Request &request, Http::ResponseWriter response) {
+    void retrieve_artists(const Rest::Request &request, Http::ResponseWriter response) {
         Document json_response;
         json_response.SetObject();
         Value results(kArrayType);
@@ -79,12 +80,14 @@ private:
         auto cursor = collection.find({}, opts);
 
         for (auto &&doc : cursor) {
-            string band_name;
             Document band;
-            bsoncxx::document::element name = doc["name"];
+            bsoncxx::document::element _id_element = doc["_id"];
+            bsoncxx::document::element name_element = doc["name"];
 
-            band_name = name.get_utf8().value.to_string();
+            const string _id = _id_element.get_oid().value.to_string();
+            const string band_name = name_element.get_utf8().value.to_string();
             band.SetObject();
+            band.AddMember("_id", _id, allocator);
             band.AddMember("name", band_name, allocator);
             results.PushBack(band, allocator);
         }
@@ -102,8 +105,12 @@ private:
     }
 
     void create_artist(const Rest::Request &request, Http::ResponseWriter response) {
-        Document payload;
+        Document payload, json_response;
+        json_response.SetObject();
         payload.Parse(request.body());
+
+        Document::AllocatorType &allocator = json_response.GetAllocator();
+
         Value &name = payload["name"];
         cout << name.GetString() << endl;
         mongocxx::collection artists = mongo_conn["metal_api"]["artists"];
@@ -113,12 +120,15 @@ private:
                 << bsoncxx::builder::stream::finalize;
         bsoncxx::document::view view = doc_value.view();
         bsoncxx::stdx::optional<mongocxx::result::insert_one> result = artists.insert_one(view);
-        auto result_id = result->inserted_id();
-//        payload.SetString("_id", result_id);
+        const bsoncxx::types::value& result_id = result->inserted_id();
+        const auto _id = result_id.get_oid().value.to_string();
+
+        json_response.AddMember("_id", _id, allocator);
+        json_response.AddMember("name", (string) name.GetString(), allocator);
 
         StringBuffer buffer;
         Writer<StringBuffer> writer(buffer);
-        payload.Accept(writer);
+        json_response.Accept(writer);
 
         cout << buffer.GetString() << endl;
         response.headers().add<Http::Header::ContentType>(MIME(Application, Json));
